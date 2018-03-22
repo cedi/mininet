@@ -31,69 +31,129 @@ from mininet.node import Node
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 
+from ipsecgateway import IPsecRouter
+
+"""
+Global Variables for the correct naming formats
+"""
+switchFormat = "s{}"
+gatewayFormat = "r{}"
+hostFormat = "sn{}-h{}"
+ifFormat = "{}-eth{}"
+
+"""
+The IP Address format.
+
+The base Address is 10.0.0.0/8 and then substituted to
+10.0.0.0/16 for the IPsec gateway subnet and
+10.0.0.0/24 for the Subnets behind an IPsec gateway
+
+Example:
+    10.1.0.1/16 is the WAN IP Address of the first IPsec gateway
+
+    10.1.1.1/24 is the LAN IP Address of the first IPsec gateway in the first
+        host Subnet
+
+    10.1.1.2/24 is the LAN IP Address of the first host in the first host
+        subnet on the first IPsec gateway gateway
+
+    10.1.1.254/24 is the LAN IP Address of the last host in the first host
+        subnet on the first IPsec gateway gateway
+"""
+ipFormat = "10.{}.{}.{}/{}"
 
 class IPsecNetworkTopo( Topo ):
     """
     An network Topo which connects clients to an ipsec gateway
     """
 
+    def addIPsecGateway( self, name ):
+        "Add a IPsecRouter component to the network"
+        return self.addHost( name )
+
     def build( self, **_opts ):
+        """
+        Builds the (virtual) network
 
-        defaultIP = '192.168.1.1/24'  # IP address for r0-eth1
-        router = self.addNode( 'r0', cls=LinuxRouter, ip=defaultIP )
+        *** named arguments ***
+        :switch: the number of switches. Ideally is to use the same number as
+            your machine physical ports have.
+            Parameter is optional. Default = 1 switch
 
-        s1, s2, s3 = [ self.addSwitch( s ) for s in ( 's1', 's2', 's3' ) ]
+        :gateways: number of gateways. Must be between 1 and 254
+            Parameter is optional. Default = 1 gateway
 
-        self.addLink( s1, router, intfName2='r0-eth1',
-                      params2={ 'ip' : defaultIP } )  # for clarity
+        :hostsubnets: number of host subnets. Must be between 1 and 254
+            Parameter is optional. Default = 1 subnet
 
-        self.addLink( s2, router, intfName2='r0-eth2',
-                      params2={ 'ip' : '172.16.0.1/12' } )
+        :hostsinsubnet: (optional) must be between 1 and 253, parameter is
+            Parameter is optional. Default = 1 host
+        """
 
-        self.addLink( s3, router, intfName2='r0-eth3',
-                      params2={ 'ip' : '10.0.0.1/8' } )
+        switchCnt = _opts.get('switches', 1)
+        gatewayCnt = _opts.get('gateways', 1)
+        hostSubnetCnt = _opts.get('hostsubnets', 1)
+        hostsInSubnetCnt = _opts.get('hostinsubnet', 1)
+
+        info("*** Switches: {}, Gateways: {}, Subnets per GW: {}, Hosts in Subnet: {}\n".format(switchCnt, gatewayCnt, hostSubnetCnt, hostsInSubnetCnt))
+        switches = self.addVSwitch(switchCnt, gatewayCnt, hostSubnetCnt,
+                hostsInSubnetCnt)
+
+    def addVSwitch( self, switches, gateways, hostsubnets, hostsinsubnet):
+        for sw in range( 1, switches + 1 ):
+            swName = switchFormat.format( sw )
+            info( "*** Adding switch: " + swName + "\n" )
+
+            switch = self.addSwitch( swName )
+            self.addGateway( switch, gateways, hostsubnets, hostsinsubnet )
+
+    def addGateway( self, switch, gateways, hostSubnets, hostsInSubnet):
+        for gw in range( 1, gateways + 1):
+            gwName = gatewayFormat.format( gw )
+
+            info( "*** Adding gateway: " + gwName + "\n")
+
+            # determine the first interface on the gateway
+            gwDefIfaceName = ifFormat.format( gwName, 0 )
+
+            # determine the WAN IP of the IPsec gateway
+            gwIP = ipFormat.format( gw, 0, 1, 16 )
+
+            # add the gateway and link it to the switch
+            gateway = self.addIPsecGateway( gwName )
+
+            info( "*** Add Link ({}, {})\n".format( switch, gateway ) )
+            self.addLink( switch, gateway,
+                    intfName2=gwDefIfaceName,
+                    params2={ 'ip' : gwIP } )
+
+            self.addHosts( gateway, gw, hostSubnets, hostsInSubnet )
+
+    def addHosts( self, gateway, gwIpPortion, hostSubnets, hostsInSubnet):
+        for sn in range( 1, hostSubnets + 1 ):
+            lanIpOfGw = ipFormat.format( gwIpPortion, sn, 1, 24 )
+            # lanIfaceNameOfGw = ifFormat( hName, 0 )
+
+            for h in range( 1, hostsInSubnet + 1 ):
+                hName = hostFormat.format( sn, h )
+
+                # determine the LAN interface name for the host
+                hIfaceName = ifFormat.format( hName, 0 ) # is always hostname-eth0
+                gwIfaceName = ifFormat.format( str(gateway), h )
+
+                # determine the WAN IP of the IPsec gateway
+                hIP = ipFormat.format( gwIpPortion, sn, h + 1, 24 )
+                gwIP = ipFormat.format( gwIpPortion, sn, h, 24 )
+
+                # determine the default route for this subnet
+                hDefRoute = "via {}".format( lanIpOfGw )
+
+                # add the gateway and link it to the switch
+                host = self.addHost( hName, ip=hIP, defaultRoute=hDefRoute )
+
+                info( "*** Add Link ({}, {})\n".format( gateway, host ) )
+                self.addLink( host, gateway,
+                        intfName2=gwIfaceName,
+                        params2={ 'ip': gwIP } )
 
 
-        h1 = self.addHost( 'h1', ip='192.168.1.100/24',
-                           defaultRoute='via 192.168.1.1' )
-
-        h2 = self.addHost( 'h2', ip='172.16.0.100/12',
-                           defaultRoute='via 172.16.0.1' )
-
-        h3 = self.addHost( 'h3', ip='10.0.0.100/8',
-                           defaultRoute='via 10.0.0.1' )
-
-        for h, s in [ (h1, s1), (h2, s2), (h3, s3) ]:
-            self.addLink( h, s )
-
-def run():
-    "Test linux router"
-
-    info("******************************************************************\n")
-    topo = NHostTopo(hosts=4, max_hosts_per_sw=2)
-    net = Mininet(topo=topo)
-
-    net.start()
-    net.iperf()
-    net.stop()
-
-    #topo = NetworkTopo()
-    #net = Mininet( topo=topo )  # controller is used by s1-s3
-
-    #net.start()
-
-    #h1 = net.getNodeByName('h1')
-    #h2 = net.getNodeByName('h2')
-    #h3 = net.getNodeByName('h3')
-
-    #net.iperf((h1, h2))
-    #net.iperf((h1, h3))
-    #net.iperf((h2, h3))
-
-    #info( '*** Routing Table on Router\n' )
-    ##CLI( net )
-    #net.stop()
-
-if __name__ == '__main__':
-    setLogLevel( 'info' )
-    run()

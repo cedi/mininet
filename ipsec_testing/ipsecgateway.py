@@ -10,7 +10,7 @@ Todo: To be documented!
 
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.node import Node
+from mininet.node import Host
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 
@@ -32,4 +32,9 @@ class IPsecRouter( LinuxRouter ):
     """
     A IPsecRouter is primarily a LinuxRouter Object
     """
-    pass;
+    def config( self, **params ):
+        super( IPsecRouter, self).config( **params )
+
+    def terminate( self ):
+        super( IPsecRouter, self ).terminate()
+
