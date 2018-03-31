@@ -30,7 +30,7 @@ def run():
 
     info( "*** Setup phase\n")
     topo = IPsecNetworkTopo(switches=1, gateways=1,
-            hostsubnets=1, hostsinsubnet=1)
+            hostsubnets=1, hostinsubnet=1)
 
     info( "*** Configure phase\n")
     net = Mininet( topo=topo )
@@ -39,31 +39,26 @@ def run():
     net.start()
 
     r1 = net.getNodeByName('r1')
-    h1 = net.getNodeByName('sn1-h1')
+    h1 = net.getNodeByName('sn1_h1')
+    #h2 = net.getNodeByName('sn1-h2')
 
-    info( "*** r1 ip a ls\n" )
-    info( r1.cmd( 'ip a ls' ) + "\n" )
-    info( "*** r1 ip r ls\n" )
-    info( r1.cmd( 'ip r ls' ) + "\n" )
+    #info( "*** r1 ip a ls\n" )
+    #info( r1.cmd( 'ip a ls' ) + "\n" )
+    #info( "*** r1 ip r ls\n" )
+    #info( r1.cmd( 'ip r ls' ) + "\n" )
 
-    info( "*** h1 ip a ls\n" )
-    info( h1.cmd( 'ip a ls' ) + "\n" )
-    info( "*** h1 ip r ls\n" )
-    info( h1.cmd( 'ip r ls' ) + "\n" )
+    #info( "*** h1 ip a ls\n" )
+    #info( h1.cmd( 'ip a ls' ) + "\n" )
+    #info( "*** h1 ip r ls\n" )
+    #info( h1.cmd( 'ip r ls' ) + "\n" )
 
-#    print( h1.intfList() )
-#    print( r1.intfList() )
-    print( net.linksBetween( h1, r1 ) )
+    #info( "*** h1 ping r1\n" )
+    #info( h1.cmd( "ping -c 1 -I 10.1.1.2 10.1.1.1" ) )
+    #info( r1.cmd( "ping -c 1 -I 10.1.1.1 10.1.1.2" ) )
 
-    info( "*** h1 ping r1\n" )
-    info( h1.cmd( "ping -c 1 -I 10.1.1.2 10.1.1.1" ) )
-    info( r1.cmd( "ping -c 1 -I 10.1.1.1 10.1.1.2" ) )
-
-    #net.ping( ( h1, r1 ) )
-
-    #net.iperf((h1, h2))
-    #net.iperf((h1, h3))
-    #net.iperf((h2, h3))
+    net.ping( ( h1, r1 ) )
+    #net.ping( ( h1, h2 ) )
+    #net.ping( ( h2, r1 ) )
 
     CLI( net )
     net.stop()

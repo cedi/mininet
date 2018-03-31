@@ -9,19 +9,33 @@ esp traffic.
 
 Here a example topology:
 
-    +----------------------------------------------------+
-    |                     openVSwitch                    |
-    +----------------------------------------------------+
-                               |
-            +------------------------------------+
-            |                  |                 |
-    +---------------+  +---------------+ +---------------+
-    | IPsecGateway1 |  | IPsecGateway2 | | IPsecGateway3 |
-    +---------------+  +---------------+ +---------------+
-            |                  |                 |
-        +-------+          +-------+         +-------+
-        | Host1 |          | Host2 |         | Host3 |
-        +-------+          +-------+         +-------+
+                                +--------------+
+                                |  Hostsystem  |
+                                |     eth1     |
+                                +------+-------+
+                                       |
+                             +---------+---------+
+                             |    openVSwitch    |
+                             +---------+---------+
+                                       |
+                             +---------+---------+
+                             |                   |
+                      +------+--------+  +-------+-------+
+                      | IPsecGateway1 |  | IPsecGateway2 |
+                      +-------+-------+  +-------+-------+
+                              |                  |
+                       +------+                  +------+
+                       |                                |
+             +---------+-----------+         +----------+----------+
+             |     openVSwitch     |         |     openVSwitch     |
+             +------+-----+--------+         +-------+-----+-------+
+                    |     |                          |     |
+                 +--+     +--+                    +--+     +--+
+                 |           |                    |           |
+             +---+---+   +---+---+            +---+---+   +---+---+
+             | Host1 |   | Host2 |            | Host1 |   | Host2 |
+             +-------+   +-------+            +-------+   +-------+
+
 """
 
 
@@ -37,9 +51,15 @@ from ipsecgateway import IPsecRouter
 Global Variables for the correct naming formats
 """
 switchFormat = "s{}"
+hostSwitchFormat = "sn{}_s{}"
 gatewayFormat = "r{}"
-hostFormat = "sn{}-h{}"
-ifFormat = "{}-eth{}"
+hostFormat = "sn{}_h{}"
+ifFormat = "{}_eth{}"
+
+"""
+Global Variables
+"""
+globalSwitchCnt = 0
 
 """
 The IP Address format.
@@ -60,16 +80,18 @@ Example:
     10.1.1.254/24 is the LAN IP Address of the last host in the first host
         subnet on the first IPsec gateway gateway
 """
-ipFormat = "10.{}.{}.{}/{}"
+ipFormat = "10.{}.{}.{}"
 
 class IPsecNetworkTopo( Topo ):
     """
     An network Topo which connects clients to an ipsec gateway
     """
 
-    def addIPsecGateway( self, name ):
+    def addIPsecGateway( self, name, localSubnet, inetIface, localIface ):
         "Add a IPsecRouter component to the network"
-        return self.addHost( name )
+        return self.addHost( name, cls=IPsecRouter,
+                subnet="{}/24".format( localSubnet ), inetIntf=inetIface,
+                localIntf=localIface )
 
     def build( self, **_opts ):
         """
@@ -96,64 +118,107 @@ class IPsecNetworkTopo( Topo ):
         hostsInSubnetCnt = _opts.get('hostinsubnet', 1)
 
         info("*** Switches: {}, Gateways: {}, Subnets per GW: {}, Hosts in Subnet: {}\n".format(switchCnt, gatewayCnt, hostSubnetCnt, hostsInSubnetCnt))
+
+        if hostSubnetCnt != 1:
+            info( "*** Currently only one subnet behind each gateway is supported" )
+            assert switchCnt == 1
+
         switches = self.addVSwitch(switchCnt, gatewayCnt, hostSubnetCnt,
                 hostsInSubnetCnt)
 
     def addVSwitch( self, switches, gateways, hostsubnets, hostsinsubnet):
+        global globalSwitchCnt
+        global switchFormat
+
         for sw in range( 1, switches + 1 ):
-            swName = switchFormat.format( sw )
+            globalSwitchCnt += 1
+            swName = switchFormat.format( globalSwitchCnt )
             info( "*** Adding switch: " + swName + "\n" )
 
             switch = self.addSwitch( swName )
             self.addGateway( switch, gateways, hostsubnets, hostsinsubnet )
 
-    def addGateway( self, switch, gateways, hostSubnets, hostsInSubnet):
+    def addGateway( self, wanSwitch, gateways, hostSubnets, hostsInSubnet):
+        global globalSwitchCnt
+        global ifFormat
+        global ipFormat
+        global switchFormat
+
         for gw in range( 1, gateways + 1):
             gwName = gatewayFormat.format( gw )
 
             info( "*** Adding gateway: " + gwName + "\n")
 
-            # determine the first interface on the gateway
-            gwDefIfaceName = ifFormat.format( gwName, 0 )
+            # determine the WAN interface on the gateway
+            gwWANIface = ifFormat.format( gwName, 0 )
+
+            # determine the LAN interface on the gateway
+            gwLANIface = ifFormat.format( gwName, 1 )
 
             # determine the WAN IP of the IPsec gateway
-            gwIP = ipFormat.format( gw, 0, 1, 16 )
+            gwWANIP = ipFormat.format( gw, 0, 1 )
+
+            # determine the WAN IP of the IPsec gateway
+            # XXX: Ugly as motherfucking hell, but i want to get this stuff to
+            # to work now, so i'll do this hack here... Should be refactored
+            # soon!!!
+            # TODO: Make Subnet part dynamic
+            gwLANIP = ipFormat.format( gw, 1, 2 )
+
+            # XXX: Ugly as motherfucking hell, but i want to get this stuff to
+            # to work now, so i'll do this hack here... Should be refactored
+            # soon!!!
+            # TODO: Make Subnet part dynamic
+            lanSubnet = ipFormat.format( gw, 1, 1 )
 
             # add the gateway and link it to the switch
-            gateway = self.addIPsecGateway( gwName )
+            gateway = self.addIPsecGateway( gwName, lanSubnet, gwWANIface,
+                    gwLANIface )
 
-            info( "*** Add Link ({}, {})\n".format( switch, gateway ) )
-            self.addLink( switch, gateway,
-                    intfName2=gwDefIfaceName,
-                    params2={ 'ip' : gwIP } )
+            info( "*** Add Link between Gateway-WAN (IP: {}/24) and WAN-Switch ({}, {})\n".format( gwWANIP, gateway, wanSwitch ) )
+            self.addLink( wanSwitch, gateway,
+                    intfName2=gwWANIface,
+                    params2={ 'ip' : "{}/24".format( gwWANIP ) } )
 
-            self.addHosts( gateway, gw, hostSubnets, hostsInSubnet )
+            # create a new switch where all hosts are attachted to
+            globalSwitchCnt += 1
+            swName = switchFormat.format( globalSwitchCnt )
 
-    def addHosts( self, gateway, gwIpPortion, hostSubnets, hostsInSubnet):
+            info( "*** Adding switch: " + swName + "\n" )
+            lanSwitch = self.addSwitch( swName )
+
+            info( "*** Add Link between Gateway-LAN and LAN-Switch ({}, {})\n".format( lanSwitch, gateway ) )
+            self.addLink( lanSwitch, gateway, intfName2=gwLANIface,
+                    params2={ 'ip' : "{}/24".format( gwLANIP ) } )
+
+            self.addHosts( lanSwitch, gw, gwLANIP, hostSubnets, hostsInSubnet )
+
+    def addHosts( self, switch, gwIpPortion, gwWANIP, hostSubnets, hostsInSubnet):
+        global ifFormat
+        global ipFormat
+        global hostFormat
+
         for sn in range( 1, hostSubnets + 1 ):
-            lanIpOfGw = ipFormat.format( gwIpPortion, sn, 1, 24 )
-            # lanIfaceNameOfGw = ifFormat( hName, 0 )
-
             for h in range( 1, hostsInSubnet + 1 ):
                 hName = hostFormat.format( sn, h )
 
                 # determine the LAN interface name for the host
-                hIfaceName = ifFormat.format( hName, 0 ) # is always hostname-eth0
-                gwIfaceName = ifFormat.format( str(gateway), h )
+                # should always be hostname-eth0
+                hIfaceName = ifFormat.format( hName, 0 )
 
                 # determine the WAN IP of the IPsec gateway
-                hIP = ipFormat.format( gwIpPortion, sn, h + 1, 24 )
-                gwIP = ipFormat.format( gwIpPortion, sn, h, 24 )
+                hIP = ipFormat.format( gwIpPortion, sn, h + 2 )
+                info( "Host: {}, Host Iface: {},LAN-IP: {}\n".format( hName, hIfaceName, hIP ) )
 
                 # determine the default route for this subnet
-                hDefRoute = "via {}".format( lanIpOfGw )
+                hDefRoute = "via {}".format( gwWANIP )
+                info( "default: '{}'\n".format( hDefRoute ) )
 
+                info( "Host: {}, defaultRoute = '{}'\n".format( hName, hDefRoute ) )
                 # add the gateway and link it to the switch
-                host = self.addHost( hName, ip=hIP, defaultRoute=hDefRoute )
+                host = self.addHost( hName, ip="{}/24".format( hIP ), defaultRoute=hDefRoute )
 
-                info( "*** Add Link ({}, {})\n".format( gateway, host ) )
-                self.addLink( host, gateway,
-                        intfName2=gwIfaceName,
-                        params2={ 'ip': gwIP } )
+                info( "*** Add Link ({}, {})\n".format( switch, host ) )
+                self.addLink( host, switch )
 
 

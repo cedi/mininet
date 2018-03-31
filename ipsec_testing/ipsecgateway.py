@@ -10,25 +10,11 @@ Todo: To be documented!
 
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.node import Host
+from mininet.nodelib import NAT
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 
-import math
-
-class LinuxRouter( Host ):
-    "A simple Host with IP forwarding enabled, so it can route properly"
-
-    def config( self, **params ):
-        super( LinuxRouter, self).config( **params )
-        # Enable forwarding on the router
-        self.cmd( 'sysctl net.ipv4.ip_forward=1' )
-
-    def terminate( self ):
-        self.cmd( 'sysctl net.ipv4.ip_forward=0' )
-        super( LinuxRouter, self ).terminate()
-
-class IPsecRouter( LinuxRouter ):
+class IPsecRouter( NAT ):
     """
     A IPsecRouter is primarily a LinuxRouter Object
     """
