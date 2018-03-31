@@ -29,8 +29,7 @@ def run():
     """
 
     info( "*** Setup phase\n")
-    topo = IPsecNetworkTopo(switches=1, gateways=1,
-            hostsubnets=1, hostinsubnet=1)
+    topo = IPsecNetworkTopo(switches=2, gateways=2, hosts=2)
 
     info( "*** Configure phase\n")
     net = Mininet( topo=topo )
@@ -38,27 +37,24 @@ def run():
     info( "*** Starting mininet\n")
     net.start()
 
-    r1 = net.getNodeByName('r1')
-    h1 = net.getNodeByName('sn1_h1')
-    #h2 = net.getNodeByName('sn1-h2')
+    r1 = net.getNodeByName('s1_r1')
+    h1 = net.getNodeByName('s1_r1_h1')
+    h2 = net.getNodeByName('s1_r1_h2')
+    r2 = net.getNodeByName('s1_r2')
+    h3 = net.getNodeByName('s1_r2_h1')
+    h4 = net.getNodeByName('s1_r2_h2')
 
-    #info( "*** r1 ip a ls\n" )
-    #info( r1.cmd( 'ip a ls' ) + "\n" )
-    #info( "*** r1 ip r ls\n" )
-    #info( r1.cmd( 'ip r ls' ) + "\n" )
+    r3 = net.getNodeByName('s2_r1')
+    h5 = net.getNodeByName('s2_r1_h1')
+    h6 = net.getNodeByName('s2_r1_h2')
+    r4 = net.getNodeByName('s2_r2')
+    h7 = net.getNodeByName('s2_r2_h1')
+    h8 = net.getNodeByName('s2_r2_h2')
 
-    #info( "*** h1 ip a ls\n" )
-    #info( h1.cmd( 'ip a ls' ) + "\n" )
-    #info( "*** h1 ip r ls\n" )
-    #info( h1.cmd( 'ip r ls' ) + "\n" )
-
-    #info( "*** h1 ping r1\n" )
-    #info( h1.cmd( "ping -c 1 -I 10.1.1.2 10.1.1.1" ) )
-    #info( r1.cmd( "ping -c 1 -I 10.1.1.1 10.1.1.2" ) )
-
-    net.ping( ( h1, r1 ) )
-    #net.ping( ( h1, h2 ) )
-    #net.ping( ( h2, r1 ) )
+    net.ping( ( r1, h1, h2 ) )
+    net.ping( ( r2, h3, h4 ) )
+    net.ping( ( r3, h5, h6 ) )
+    net.ping( ( r4, h7, h8 ) )
 
     CLI( net )
     net.stop()
