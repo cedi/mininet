@@ -830,7 +830,7 @@ if [ $# -eq 0 ]
 then
     all
 else
-    while getopts 'abcdefhikmnprs:tvV:wxy03' OPTION
+    while getopts 'abcdefhikmnoprs:tvV:wxy03' OPTION
     do
       case $OPTION in
       a)    all;;
