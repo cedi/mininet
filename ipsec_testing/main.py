@@ -15,24 +15,69 @@ Each network leaf consists of a single IPsec gateway with a single host behind
 it to generate esp traffic.
 """
 
+# Mininet includes
 from mininet.net import Mininet
 from mininet.node import Node
 from mininet.log import setLogLevel, info
+from mininet.link import Intf
 from mininet.cli import CLI
+from mininet.util import quietRun
 
+# actual loadtest includes
 from ipsectopo import IPsecNetworkTopo
 
+# Python includes
+from optparse import OptionParser
+import sys
+import re
 
-def run():
+def checkIntf( intf ):
+    '''
+    Make sure intf exists and is not configured.
+    '''
+    config = quietRun( 'ifconfig %s 2>/dev/null' % intf, shell=True )
+    if not config:
+        error( 'Error:', intf, 'does not exist!\n' )
+        return False
+
+    ips = re.findall( r'\d+\.\d+\.\d+\.\d+', config )
+    if ips:
+        error( 'Error:', intf, 'has an IP address,'
+               'and is probably in use!\n' )
+        return False
+
+    return True
+
+def connectSwitchesToEths( net, interfaces ):
+    switchFormat = "sw_{}"
+    for sw in range(1, len(interfaces) + 1):
+        swName = switchFormat.format(sw)
+        switch = net.getNodeByName( swName )
+        eth = interfaces[ sw-1 ]
+
+        info( "*** Connect sw '{}' to iface '{}'\n".format(swName, eth) )
+        if checkIntf( eth ):
+            _intf = Intf( eth, node=switch )
+        else:
+            exit( 1 )
+
+
+def run(interfaces, gateways, hosts):
     """
     Run the IPsec test network
     """
 
     info( "*** Setup phase\n")
-    topo = IPsecNetworkTopo(switches=2, gateways=2, hosts=2)
+    topo = IPsecNetworkTopo(interfaces=interfaces, gateways=gateways,
+            hosts=hosts)
 
     info( "*** Configure phase\n")
     net = Mininet( topo=topo )
+
+    # bridge eths to switches
+    connectSwitchesToEths( net, interfaces )
+
+    return
 
     info( "*** Starting mininet\n")
     net.start()
@@ -59,6 +104,23 @@ def run():
     CLI( net )
     net.stop()
 
+def optionParse():
+    parser = OptionParser()
+
+    parser.add_option('-i', '--interfaces', dest="interfaces", action="append",
+            default=[])
+
+    parser.add_option( '-n', '--nodes', dest="hosts", action="store",
+            default="1", type="int")
+
+    parser.add_option( '-g', '--gateways', dest="gateways", action="store",
+            default="1", type="int")
+
+    options, args = parser.parse_args()
+
+    return options
+
 if __name__ == '__main__':
     setLogLevel( 'info' )
-    run()
+    options = optionParse()
+    run(options.interfaces, options.hosts, options.gateways)

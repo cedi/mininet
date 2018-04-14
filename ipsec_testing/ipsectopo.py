@@ -38,22 +38,26 @@ Here a example topology:
 
 """
 
+import re
+import sys
 
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.node import Node
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
+from mininet.link import Intf
+from mininet.util import quietRun
 
 from ipsecgateway import IPsecRouter
 
 """
 Global Variables for the correct naming formats
 """
-switchFormat = "s{}"
-gatewayFormat = "s{}_r{}"
-hostSwitchFormat = "s{}_r{}_s1"
-hostFormat = "s{}_r{}_h{}"
+switchFormat = "sw_{}"
+gatewayFormat = "sw_{}_r{}"
+hostSwitchFormat = "sw_{}_r{}_s1"
+hostFormat = "sw_{}_r{}_h{}"
 ifFormat = "{}_eth{}"
 
 """
@@ -104,22 +108,22 @@ class IPsecNetworkTopo( Topo ):
             Parameter is optional. Default = 1 host
         """
 
-        switchCnt = _opts.get('switches', 1)
+        interfaces = _opts.get('interfaces')
         gatewayCnt = _opts.get('gateways', 1)
         hostsCnt = _opts.get('hosts', 1)
 
-        info("*** Switches: {}, Gateways: {}, Hosts per Router: {}\n".format(switchCnt, gatewayCnt, hostsCnt))
+        info("*** Switches: {}, Gateways: {}, Hosts per Router: {}\n".format(len(interfaces), gatewayCnt, hostsCnt))
 
-        self.addVSwitch(switchCnt, gatewayCnt, hostsCnt)
+        self.addVSwitch(interfaces, gatewayCnt, hostsCnt)
 
-    def addVSwitch( self, switches, gateways, hosts ):
+    def addVSwitch( self, interfaces, gateways, hosts ):
         global switchFormat
 
-        for sw in range( 1, switches + 1 ):
+        for sw in range(1, len(interfaces) +1):
             swName = switchFormat.format( sw )
             info( "*** Adding switch: " + swName + "\n" )
-
             switch = self.addSwitch( swName )
+
             self.addGateway( sw, switch, gateways, hosts )
 
     def addGateway( self, sw, wanSwitch, gateways, hosts):
@@ -191,3 +195,19 @@ class IPsecNetworkTopo( Topo ):
             info( "*** Add Link ({}, {})\n".format( switch, host ) )
             self.addLink( host, switch )
 
+    def checkIntf( self, intf ):
+        '''
+        Make sure intf exists and is not configured.
+        '''
+        config = quietRun( 'ifconfig %s 2>/dev/null' % intf, shell=True )
+        if not config:
+            error( 'Error:', intf, 'does not exist!\n' )
+            return False
+
+        ips = re.findall( r'\d+\.\d+\.\d+\.\d+', config )
+        if ips:
+            error( 'Error:', intf, 'has an IP address,'
+                   'and is probably in use!\n' )
+            return False
+
+        return True
