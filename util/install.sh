@@ -288,6 +288,21 @@ function install_wireshark {
     cd $BUILD_DIR
 }
 
+function install_strongswan {
+    if ! which ipsec; then
+        echo "Installing strongswan"
+        if [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
+            $install strongswan
+		elif [ "$DIST" = "SUSE LINUX"  ]; then
+			$install strongswan
+        else
+            $install strongswan
+        fi
+    fi
+
+    cd $BUILD_DIR
+}
+
 
 # Install Open vSwitch specific version Ubuntu package
 function ubuntuOvs {
@@ -794,6 +809,7 @@ function usage {
     printf -- ' -k: install new (K)ernel\n' >&2
     printf -- ' -m: install Open vSwitch kernel (M)odule from source dir\n' >&2
     printf -- ' -n: install Mini(N)et dependencies + core files\n' >&2
+    printf -- ' -o: install str(o)ngSwan dependencies + core files\n' >&2
     printf -- ' -p: install (P)OX OpenFlow Controller\n' >&2
     printf -- ' -r: remove existing Open vSwitch packages\n' >&2
     printf -- ' -s <dir>: place dependency (S)ource/build trees in <dir>\n' >&2
@@ -832,6 +848,7 @@ else
       k)    kernel;;
       m)    modprobe;;
       n)    mn_deps;;
+      o)    install_strongswan;;
       p)    pox;;
       r)    remove_ovs;;
       s)    mkdir -p $OPTARG; # ensure the directory is created
