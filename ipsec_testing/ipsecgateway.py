@@ -8,19 +8,15 @@ Todo: To be documented!
 """
 
 
-from mininet.topo import Topo
-from mininet.net import Mininet
 from mininet.nodelib import NAT
-from mininet.log import setLogLevel, info
-from mininet.cli import CLI
 
-class IPsecRouter( NAT ):
+class IPsecRouter(NAT):
     """
     A IPsecRouter is primarily a LinuxRouter Object
     """
-    def config( self, **params ):
-        super( IPsecRouter, self).config( **params )
+    def config(self, **params):
+        super(IPsecRouter, self).config(**params)
 
-    def terminate( self ):
-        super( IPsecRouter, self ).terminate()
+    def terminate(self):
+        super(IPsecRouter, self).terminate()
 
