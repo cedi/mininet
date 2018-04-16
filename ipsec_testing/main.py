@@ -77,24 +77,22 @@ def run(interfaces, gateways, hosts):
     # bridge eths to switches
     connectSwitchesToEths( net, interfaces )
 
-    return
-
     info( "*** Starting mininet\n")
     net.start()
 
-    r1 = net.getNodeByName('s1_r1')
-    h1 = net.getNodeByName('s1_r1_h1')
-    h2 = net.getNodeByName('s1_r1_h2')
-    r2 = net.getNodeByName('s1_r2')
-    h3 = net.getNodeByName('s1_r2_h1')
-    h4 = net.getNodeByName('s1_r2_h2')
+    r1 = net.getNodeByName('sw_1_r1')
+    h1 = net.getNodeByName('sw_1_r1_h1')
+    h2 = net.getNodeByName('sw_1_r1_h2')
+    r2 = net.getNodeByName('sw_1_r2')
+    h3 = net.getNodeByName('sw_1_r2_h1')
+    h4 = net.getNodeByName('sw_1_r2_h2')
 
-    r3 = net.getNodeByName('s2_r1')
-    h5 = net.getNodeByName('s2_r1_h1')
-    h6 = net.getNodeByName('s2_r1_h2')
-    r4 = net.getNodeByName('s2_r2')
-    h7 = net.getNodeByName('s2_r2_h1')
-    h8 = net.getNodeByName('s2_r2_h2')
+    r3 = net.getNodeByName('sw_2_r1')
+    h5 = net.getNodeByName('sw_2_r1_h1')
+    h6 = net.getNodeByName('sw_2_r1_h2')
+    r4 = net.getNodeByName('sw_2_r2')
+    h7 = net.getNodeByName('sw_2_r2_h1')
+    h8 = net.getNodeByName('sw_2_r2_h2')
 
     net.ping( ( r1, h1, h2 ) )
     net.ping( ( r2, h3, h4 ) )
@@ -123,4 +121,4 @@ def optionParse():
 if __name__ == '__main__':
     setLogLevel( 'info' )
     options = optionParse()
-    run(options.interfaces, options.hosts, options.gateways)
+    run(options.interfaces, options.gateways, options.hosts)

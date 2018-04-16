@@ -38,16 +38,11 @@ Here a example topology:
 
 """
 
-import re
-import sys
-
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.node import Node
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
-from mininet.link import Intf
-from mininet.util import quietRun
 
 from ipsecgateway import IPsecRouter
 
@@ -182,32 +177,17 @@ class IPsecNetworkTopo( Topo ):
 
             # determine the WAN IP of the IPsec gateway
             hIP = ipFormat.format( gateway, h + 1 )
-            info( "Host: {}, Host Iface: {},LAN-IP: {}\n".format( hName, hIfaceName, hIP ) )
+            #info( "Host: {}, Host Iface: {},LAN-IP: {}\n".format( hName, hIfaceName, hIP ) )
 
             # determine the default route for this subnet
             hDefRoute = "via {}".format( gwLANIP )
-            info( "default: '{}'\n".format( hDefRoute ) )
+            #info( "default: '{}'\n".format( hDefRoute ) )
 
-            info( "Host: {}, defaultRoute = '{}'\n".format( hName, hDefRoute ) )
+            #info( "Host: {}, defaultRoute = '{}'\n".format( hName, hDefRoute ) )
+            info( "*** Adding Host {}\n".format( hName ) )
             # add the gateway and link it to the switch
             host = self.addHost( hName, ip="{}/24".format( hIP ), defaultRoute=hDefRoute )
 
             info( "*** Add Link ({}, {})\n".format( switch, host ) )
             self.addLink( host, switch )
 
-    def checkIntf( self, intf ):
-        '''
-        Make sure intf exists and is not configured.
-        '''
-        config = quietRun( 'ifconfig %s 2>/dev/null' % intf, shell=True )
-        if not config:
-            error( 'Error:', intf, 'does not exist!\n' )
-            return False
-
-        ips = re.findall( r'\d+\.\d+\.\d+\.\d+', config )
-        if ips:
-            error( 'Error:', intf, 'has an IP address,'
-                   'and is probably in use!\n' )
-            return False
-
-        return True
