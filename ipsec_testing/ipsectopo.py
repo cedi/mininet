@@ -44,11 +44,11 @@ from mininet.log import info, debug
 from ipsecgateway import IPsecRouter
 
 #Global Variables for the correct naming formats
-switchFormat = "sw_{}"
-gatewayFormat = "sw_{}_r{}"
-hostSwitchFormat = "sw_{}_r{}_s1"
-hostFormat = "sw_{}_r{}_h{}"
-ifFormat = "{}_eth{}"
+switchFormat = "sw{}"
+gatewayFormat = "sw{}r{}"
+hostSwitchFormat = "sw{}r{}s1"
+hostFormat = "sw{}r{}h{}"
+ifFormat = "{}eth{}"
 
 """
 The IP Address format.

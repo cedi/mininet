@@ -50,7 +50,7 @@ def connectSwitchesToEths(net, interfaces):
     '''
     Connects a physical interface to a openVSwitch
     '''
-    switchFormat = "sw_{}"
+    switchFormat = "sw{}"
     for sw in range(1, len(interfaces) + 1):
         swName = switchFormat.format(sw)
         switch = net.getNodeByName(swName)
